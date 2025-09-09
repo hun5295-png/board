@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 export default function Login() {
   const router = useRouter()
   const [employeeId, setEmployeeId] = useState('')
-  const [employeeName, setEmployeeName] = useState('')
+  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,37 +15,35 @@ export default function Login() {
     setError(null)
 
     try {
-      // 사번과 이름으로 직접 로그인 (이메일 검증 없음, UUID 오류 없음)
-      const result = await supabase
+      // employees 테이블에서 사번과 이름으로 직원 조회
+      const { data: employee, error } = await supabase
         .from('employees')
-        .select('employee_id, name, department')
+        .select('*')
         .eq('employee_id', employeeId)
-        .eq('name', employeeName)
+        .eq('name', name)
         .single()
-      
-      const employee = result.data
-      const employeeError = result.error
 
-      if (employeeError || !employee) {
+      if (error) throw error
+
+      if (!employee) {
         throw new Error('사번 또는 이름이 올바르지 않습니다.')
       }
 
-      // 로컬 스토리지에 사용자 정보 저장 (즉시 로그인)
-      const userData = {
-        id: employee.employee_id,
+      // 로그인 성공 시 사용자 정보를 localStorage에 저장
+      localStorage.setItem('user', JSON.stringify({
+        id: employee.id,
         employee_id: employee.employee_id,
         name: employee.name,
         department: employee.department,
-        is_admin: false,
-        loginTime: new Date().toISOString()
-      }
+        position: employee.position,
+        email: employee.email,
+        phone: employee.phone,
+        is_admin: false // 기본적으로 일반 사용자
+      }))
 
-      localStorage.setItem('user', JSON.stringify(userData))
       router.push('/')
-      
     } catch (error: any) {
-      console.error('로그인 오류:', error)
-      setError(`로그인 실패: ${error.message}`)
+      setError(error.message)
     } finally {
       setLoading(false)
     }
@@ -69,112 +67,93 @@ export default function Login() {
         <div className="absolute bottom-20 right-20 w-2 h-2 bg-white/35 rounded-full animate-bounce delay-1000"></div>
       </div>
 
-      {/* 메인 로그인 컨테이너 */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4">
+      {/* 메인 콘텐츠 */}
+      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-12">
         <div className="w-full max-w-md">
-          {/* 로고 및 헤더 */}
-          <div className="text-center mb-8 fade-in-up">
-            <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-6 border border-white/20">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3v6m0 0l-3-3m3 3l3-3" />
+          {/* 로고 및 제목 */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold text-white mb-2">환영합니다! 👋</h1>
-            <p className="text-white/80 text-lg">직원 전용 게시판에 로그인하세요</p>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              환영합니다! 👋
+            </h1>
+            <p className="text-white/80 text-lg">
+              직원 전용 게시판에 로그인하세요
+            </p>
           </div>
 
           {/* 로그인 폼 */}
-          <div className="card p-8 slide-in-right">
+          <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20">
             <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+              {/* 사번 입력 */}
+              <div>
+                <label htmlFor="employeeId" className="block text-sm font-medium text-white mb-2">
                   사번
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
-                    className="input-field pl-12 w-full"
-                    placeholder="사번을 입력하세요"
-                    required
-                  />
-                </div>
+                <input
+                  id="employeeId"
+                  type="text"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200"
+                  placeholder="사번을 입력하세요"
+                  required
+                />
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+              {/* 이름 입력 */}
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-white mb-2">
                   이름
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    value={employeeName}
-                    onChange={(e) => setEmployeeName(e.target.value)}
-                    className="input-field pl-12 w-full"
-                    placeholder="이름을 입력하세요"
-                    required
-                  />
-                </div>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200"
+                  placeholder="이름을 입력하세요"
+                  required
+                />
               </div>
 
+              {/* 에러 메시지 */}
               {error && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-                  <div className="flex">
+                <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4">
+                  <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-red-800">{error}</p>
+                      <p className="text-sm text-red-200">
+                        로그인 실패: {error}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* 로그인 버튼 */}
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full py-4 text-lg font-semibold relative overflow-hidden group"
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
               >
-                <span className="relative z-10 flex items-center justify-center">
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      로그인 중...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                      </svg>
-                      로그인하기
-                    </>
-                  )}
-                </span>
+                {loading ? '로그인 중...' : '로그인'}
               </button>
             </form>
 
-            {/* 사번 로그인 안내 */}
-            <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+            {/* 도움말 */}
+            <div className="mt-6 p-4 bg-blue-500/20 backdrop-blur-sm rounded-xl border border-blue-400/30">
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-5 h-5 text-blue-300 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div>
@@ -182,7 +161,7 @@ export default function Login() {
                   <p className="text-xs text-blue-700 leading-relaxed">
                     첨부된 직원 목록에서 사번과 이름을 입력하세요.
                     <br />
-                    <span className="font-medium">예시:</span> 사번 2, 이름 김징균
+                    <span className="font-medium">예시:</span> 사번 1131, 이름 김창훈
                   </p>
                 </div>
               </div>

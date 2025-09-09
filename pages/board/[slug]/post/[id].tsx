@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { supabase } from '../../../../lib/supabase'
+import { getUser } from '../../../../lib/auth'
 
 interface Post {
   id: string
@@ -59,12 +60,12 @@ export default function PostDetailPage() {
   }, [slug, id])
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = getUser()
     if (!user) {
       router.push('/login')
-    } else {
-      setUser(user)
+      return
     }
+    setUser(user)
   }
 
   const fetchCategory = async () => {

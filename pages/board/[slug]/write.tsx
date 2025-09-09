@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { supabase } from '../../../lib/supabase'
+import { getUser } from '../../../lib/auth'
 
 interface Category {
   id: string
@@ -29,14 +30,12 @@ export default function WritePage() {
   }, [slug])
 
   const checkUser = () => {
-    // 로컬 스토리지에서 사용자 정보 확인 (사번+이름 로그인)
-    const userData = localStorage.getItem('user')
-    if (!userData) {
+    const user = getUser()
+    if (!user) {
       router.push('/login')
-    } else {
-      const user = JSON.parse(userData)
-      setUser(user)
+      return
     }
+    setUser(user)
   }
 
   const fetchCategory = async () => {

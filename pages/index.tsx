@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import { getUser, removeUser, isAdmin } from '../lib/auth'
+import { getUser, removeUser, isAdmin as checkIsAdmin } from '../lib/auth'
 
 interface Category {
   id: string
@@ -16,6 +16,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([])
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -31,20 +32,29 @@ export default function Home() {
     }
     
     setUser(user)
-    setIsAdmin(isAdmin())
+    setIsAdmin(checkIsAdmin())
+    setLoading(false)
   }
 
   const fetchCategories = async () => {
     try {
+      console.log('📡 카테고리 데이터를 가져오는 중...')
       const { data, error } = await supabase
         .from('categories')
         .select('*')
         .order('created_at', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Supabase 오류:', error)
+        throw error
+      }
+      
+      console.log('✅ 카테고리 데이터 로드 성공:', data)
       setCategories(data || [])
     } catch (error) {
-      console.error('Error fetching categories:', error)
+      console.error('❌ 카테고리 로드 실패:', error)
+      // 오류 발생 시 빈 배열로 설정
+      setCategories([])
     } finally {
       setLoading(false)
     }

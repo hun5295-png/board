@@ -49,7 +49,7 @@ export default function EmployeeManagement() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setEmployees(data || [])
+      setEmployees((data as Employee[]) || [])
     } catch (error) {
       console.error('Error fetching employees:', error)
     } finally {

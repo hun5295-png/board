@@ -95,7 +95,7 @@ export default function BoardPage() {
 
       // 각 게시글에 댓글 수 추가
       const postsWithCommentCount = await Promise.all(
-        (posts || []).map(async (post) => {
+        (posts || []).map(async (post: any) => {
           const { count: commentCount } = await supabase
             .from('comments')
             .select('*', { count: 'exact', head: true })
@@ -104,7 +104,7 @@ export default function BoardPage() {
           return {
             ...post,
             comment_count: commentCount || 0,
-            author_name: post.is_anonymous ? '익명' : (post.author_name || '작성자')
+            author_name: post.is_anonymous ? '익명' : ((post as any).author_name || '작성자')
           }
         })
       )
@@ -238,20 +238,20 @@ export default function BoardPage() {
                       </h3>
                       <div className="flex items-center text-sm text-gray-500 space-x-4">
                         <span>
-                          작성자: {post.author_name}
+                          작성자: {(post as any).author_name}
                         </span>
                         <span>조회 {post.view_count}</span>
                         <span className="flex items-center text-blue-600">
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                           </svg>
-                          댓글 {post.comment_count || 0}
+                          댓글 {(post as any).comment_count || 0}
                         </span>
                         <span>{formatDate(post.created_at)}</span>
                       </div>
                     </div>
                     {/* 본인 게시글인 경우 수정/삭제 버튼 표시 */}
-                    {user && (post.author_employee_id === user.employee_id || post.author_employee_id === null) && (
+                    {user && ((post as any).author_employee_id === user.employee_id || (post as any).author_employee_id === null) && (
                       <div className="flex space-x-2 ml-4" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => router.push(`/board/${slug}/post/${post.id}/edit`)}

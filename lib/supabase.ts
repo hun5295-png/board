@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key'
 
-// 간단한 Mock 데이터
+// Mock 데이터
 const mockCategories = [
   {
     id: '1',
@@ -64,25 +64,27 @@ const mockEmployees = [
     is_active: true,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z'
+  },
+  {
+    id: '3',
+    employee_id: '267',
+    name: '백두심',
+    department: '임상병리실',
+    position: '주임',
+    email: 'baek@company.com',
+    phone: '010-3456-7890',
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   }
 ]
 
-// 간단한 Mock Supabase 클라이언트
-const createSimpleMockClient = () => ({
+// 간단한 Mock 클라이언트
+const mockClient = {
   auth: {
     getUser: async () => ({ data: { user: { id: 'demo-user', email: 'demo@company.com' } }, error: null }),
-    signInWithPassword: async ({ email, password }: { email: string, password: string }) => {
-      if (email && password) {
-        return { data: { user: { id: 'demo-user', email } }, error: null }
-      }
-      return { data: { user: null }, error: { message: '이메일과 비밀번호를 입력해주세요.' } }
-    },
-    signUp: async ({ email, password }: { email: string, password: string }) => {
-      if (email && password) {
-        return { data: { user: { id: 'demo-user', email } }, error: null }
-      }
-      return { data: { user: null }, error: { message: '이메일과 비밀번호를 입력해주세요.' } }
-    },
+    signInWithPassword: async () => ({ data: { user: { id: 'demo-user' } }, error: null }),
+    signUp: async () => ({ data: { user: { id: 'demo-user' } }, error: null }),
     signOut: async () => ({ error: null })
   },
   from: (table: string) => ({
@@ -110,24 +112,34 @@ const createSimpleMockClient = () => ({
           }
           return { data: null, error: { message: 'Not found' } }
         },
-        order: (column: string, options: any) => {
+        order: async (column: string, options: any) => {
           if (table === 'categories') {
-            return Promise.resolve({ data: mockCategories, error: null })
+            return { data: mockCategories, error: null }
           }
           if (table === 'employees') {
-            return Promise.resolve({ data: mockEmployees, error: null })
+            return { data: mockEmployees, error: null }
           }
-          return Promise.resolve({ data: [], error: null })
+          return { data: [], error: null }
         }
       }),
-      order: (column: string, options: any) => {
-        if (table === 'categories') {
-          return Promise.resolve({ data: mockCategories, error: null })
+      single: async () => {
+        if (table === 'profiles') {
+          return { data: { id: 'demo-user', is_admin: true }, error: null }
         }
         if (table === 'employees') {
-          return Promise.resolve({ data: mockEmployees, error: null })
+          const employee = mockEmployees.find(e => e.employee_id === '2')
+          return { data: employee, error: employee ? null : { message: 'Not found' } }
         }
-        return Promise.resolve({ data: [], error: null })
+        return { data: null, error: { message: 'Not found' } }
+      },
+      order: async (column: string, options: any) => {
+        if (table === 'categories') {
+          return { data: mockCategories, error: null }
+        }
+        if (table === 'employees') {
+          return { data: mockEmployees, error: null }
+        }
+        return { data: [], error: null }
       }
     }),
     insert: (values: any) => Promise.resolve({ data: [values], error: null }),
@@ -138,7 +150,7 @@ const createSimpleMockClient = () => ({
       eq: () => Promise.resolve({ data: [], error: null })
     })
   })
-})
+}
 
 // 데모 모드인지 확인
 const isDemo = !supabaseUrl || !supabaseAnonKey || 
@@ -147,7 +159,7 @@ const isDemo = !supabaseUrl || !supabaseAnonKey ||
 
 // Supabase 클라이언트 생성
 export const supabase = isDemo 
-  ? createSimpleMockClient()
+  ? mockClient as any
   : createClient(supabaseUrl, supabaseAnonKey)
 
 // 데모 모드 안내

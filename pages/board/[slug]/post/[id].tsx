@@ -48,7 +48,6 @@ export default function PostDetailPage() {
   const [isAnonymousComment, setIsAnonymousComment] = useState(false)
   const [loading, setLoading] = useState(true)
   const [commentLoading, setCommentLoading] = useState(false)
-  const [canEditPost, setCanEditPost] = useState(false)
 
   useEffect(() => {
     if (slug && id) {
@@ -60,11 +59,13 @@ export default function PostDetailPage() {
   }, [slug, id])
 
   const checkUser = () => {
-    // 로컬 스토리지에서 사용자 정보 확인 (사번+이름 로그인)
-    const userData = localStorage.getItem('user')
-    if (!userData) {
-      router.push('/login')
-    } else {
+    // sessionStorage에서 사용자 정보 확인
+    if (typeof window !== 'undefined') {
+      const userData = sessionStorage.getItem('user')
+      if (!userData) {
+        router.push('/login')
+        return
+      }
       const user = JSON.parse(userData)
       setUser(user)
     }
@@ -87,44 +88,23 @@ export default function PostDetailPage() {
 
   const fetchPost = async () => {
     try {
-      // Supabase에서 게시글 가져오기
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          profiles:author_id (
+            full_name,
+            email
+          )
+        `)
         .eq('id', id)
         .single()
 
       if (error) throw error
-      
+      setPost(data)
+
       // 조회수 증가
-      await supabase
-        .from('posts')
-        .update({ view_count: (data.view_count || 0) + 1 })
-        .eq('id', id)
-      
-      // 작성자 정보 추가
-      const postWithAuthor = {
-        ...data,
-        author_name: data.is_anonymous ? '익명' : (data.author_name || '작성자'),
-        view_count: (data.view_count || 0) + 1
-      }
-      
-      setPost(postWithAuthor)
-      
-      // 작성자 권한 체크
-      console.log('권한 체크:', {
-        user: user,
-        userEmployeeId: user?.employee_id,
-        postAuthorEmployeeId: data.author_employee_id,
-        isMatch: user && data.author_employee_id === user.employee_id
-      })
-      
-      // author_employee_id가 null인 경우 임시로 모든 사용자에게 수정 권한 부여
-      if (user && (data.author_employee_id === user.employee_id || data.author_employee_id === null)) {
-        setCanEditPost(true)
-      } else {
-        setCanEditPost(false)
-      }
+      await supabase.rpc('increment_view_count', { post_id: id })
     } catch (error) {
       console.error('Error fetching post:', error)
     } finally {
@@ -134,47 +114,23 @@ export default function PostDetailPage() {
 
   const fetchComments = async () => {
     try {
-      // Supabase에서 댓글 가져오기
       const { data, error } = await supabase
         .from('comments')
-        .select('*')
+        .select(`
+          *,
+          profiles:author_id (
+            full_name,
+            email
+          )
+        `)
         .eq('post_id', id)
         .order('created_at', { ascending: true })
 
       if (error) throw error
-      
-      // 댓글 작성자 정보 추가
-      const commentsWithAuthors = (data || []).map(comment => ({
-        ...comment,
-        author_name: comment.is_anonymous ? '익명' : (comment.author_name || '댓글 작성자')
-      }))
-      
-      setComments(commentsWithAuthors)
+      setComments(data || [])
     } catch (error) {
       console.error('Error fetching comments:', error)
-      setComments([])
     }
-  }
-
-  const generateUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
-      return v.toString(16)
-    })
-  }
-
-  // 댓글 작성자 권한 체크
-  const canEditComment = (comment: any) => {
-    // author_employee_id가 null인 경우 임시로 모든 사용자에게 수정 권한 부여
-    const canEdit = user && (comment.author_employee_id === user.employee_id || comment.author_employee_id === null)
-    console.log('댓글 권한 체크:', {
-      user: user,
-      userEmployeeId: user?.employee_id,
-      commentAuthorEmployeeId: comment.author_employee_id,
-      canEdit: canEdit
-    })
-    return canEdit
   }
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
@@ -184,66 +140,35 @@ export default function PostDetailPage() {
       return
     }
 
-    if (!user) {
-      alert('로그인이 필요합니다.')
-      router.push('/login')
-      return
-    }
-
-    if (!id) {
-      alert('게시글 정보를 찾을 수 없습니다.')
-      return
-    }
-
     setCommentLoading(true)
 
     try {
-      // 댓글 데이터 준비
-      const commentData = {
-        content: newComment.trim(),
-        post_id: id,
-        author_id: generateUUID(), // UUID 생성 (외래키 제약 조건 제거됨)
-        author_name: isAnonymousComment ? '익명' : user.name,
-        author_employee_id: isAnonymousComment ? null : user.employee_id,
-        is_anonymous: isAnonymousComment
-      }
-
-      console.log('댓글 작성 시도:', commentData)
-
-      // Supabase에 댓글 저장 (외래키 제약 조건 제거됨)
       const { error } = await supabase
         .from('comments')
-        .insert(commentData)
+        .insert({
+          content: newComment.trim(),
+          post_id: id,
+          author_id: user?.id,
+          is_anonymous: isAnonymousComment
+        })
 
-      if (error) {
-        console.error('댓글 저장 오류:', error)
-        throw error
-      }
+      if (error) throw error
 
       setNewComment('')
       setIsAnonymousComment(false)
       await fetchComments()
-      
-      // 댓글 추가 후 게시글 목록 업데이트를 위한 이벤트 발생 (알림 생성 비활성화)
-      // window.dispatchEvent(new CustomEvent('commentUpdated'))
     } catch (error: any) {
       console.error('Error creating comment:', error)
-      console.error('Comment error details:', {
-        message: error.message,
-        stack: error.stack,
-        user: user,
-        postId: id,
-        commentContent: newComment
-      })
-      alert(`댓글 작성 중 오류가 발생했습니다: ${error.message}`)
+      alert('댓글 작성 중 오류가 발생했습니다.')
     } finally {
       setCommentLoading(false)
     }
   }
 
   const handleLogout = () => {
-    // 로컬 스토리지에서 사용자 정보 제거
-    localStorage.removeItem('user')
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('user')
+    }
     router.push('/login')
   }
 
@@ -258,8 +183,7 @@ export default function PostDetailPage() {
   }
 
   const canEdit = () => {
-    // 작성자만 수정 가능
-    return user && post && canEditPost
+    return user && post && (user.id === post.author_id)
   }
 
   const handleEditPost = () => {
@@ -272,13 +196,6 @@ export default function PostDetailPage() {
     }
 
     try {
-      // Supabase에서 관련 댓글 먼저 삭제
-      await supabase
-        .from('comments')
-        .delete()
-        .eq('post_id', id)
-
-      // Supabase에서 게시글 삭제
       const { error } = await supabase
         .from('posts')
         .delete()
@@ -299,15 +216,7 @@ export default function PostDetailPage() {
       return
     }
 
-    // 댓글 작성자 권한 확인
-    const comment = comments.find(c => c.id === commentId)
-    if (!canEditComment(comment)) {
-      alert('삭제 권한이 없습니다.')
-      return
-    }
-
     try {
-      // Supabase에서 댓글 삭제
       const { error } = await supabase
         .from('comments')
         .delete()
@@ -316,9 +225,6 @@ export default function PostDetailPage() {
       if (error) throw error
 
       await fetchComments() // 댓글 목록 새로고침
-      
-      // 댓글 삭제 후 게시글 목록 업데이트를 위한 이벤트 발생 (알림 생성 비활성화)
-      // window.dispatchEvent(new CustomEvent('commentUpdated'))
     } catch (error: any) {
       console.error('Error deleting comment:', error)
       alert('댓글 삭제 중 오류가 발생했습니다.')
@@ -326,15 +232,7 @@ export default function PostDetailPage() {
   }
 
   const handleEditComment = async (commentId: string, newContent: string) => {
-    // 댓글 작성자 권한 확인
-    const comment = comments.find(c => c.id === commentId)
-    if (!canEditComment(comment)) {
-      alert('수정 권한이 없습니다.')
-      return
-    }
-
     try {
-      // Supabase에서 댓글 수정
       const { error } = await supabase
         .from('comments')
         .update({ content: newContent })
@@ -398,7 +296,7 @@ export default function PostDetailPage() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">{post.title}</h1>
                 <div className="flex items-center text-sm text-gray-500 space-x-4">
                   <span>
-                    작성자: {post.author_name}
+                    작성자: {post.is_anonymous ? '익명' : (post.profiles?.full_name || post.profiles?.email)}
                   </span>
                   <span>조회 {post.view_count}</span>
                   <span>{formatDate(post.created_at)}</span>
@@ -487,12 +385,12 @@ export default function PostDetailPage() {
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center text-sm text-gray-500 space-x-2">
                       <span className="font-medium">
-                        {comment.author_name}
+                        {comment.is_anonymous ? '익명' : (comment.profiles?.full_name || comment.profiles?.email)}
                       </span>
                       <span>•</span>
                       <span>{formatDate(comment.created_at)}</span>
                     </div>
-                    {user && (
+                    {user && user.id === comment.author_id && (
                       <div className="flex space-x-2">
                         <button 
                           onClick={() => {

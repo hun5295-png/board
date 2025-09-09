@@ -41,25 +41,13 @@ export default function BoardPage() {
     }
   }, [slug])
 
-  // 댓글 업데이트 이벤트 리스너 (알림 생성 비활성화로 주석 처리)
-  // useEffect(() => {
-  //   const handleCommentUpdate = () => {
-  //     fetchPosts() // 댓글 수 업데이트를 위해 게시글 목록 새로고침
-  //   }
-
-  //   window.addEventListener('commentUpdated', handleCommentUpdate)
-    
-  //   return () => {
-  //     window.removeEventListener('commentUpdated', handleCommentUpdate)
-  //   }
-  // }, [])
-
   const checkUser = () => {
-    // 로컬 스토리지에서 사용자 정보 확인 (사번+이름 로그인)
-    const userData = localStorage.getItem('user')
-    if (!userData) {
-      router.push('/login')
-    } else {
+    if (typeof window !== 'undefined') {
+      const userData = sessionStorage.getItem('user')
+      if (!userData) {
+        router.push('/login')
+        return
+      }
       const user = JSON.parse(userData)
       setUser(user)
     }
@@ -82,34 +70,20 @@ export default function BoardPage() {
 
   const fetchPosts = async () => {
     try {
-      const categoryId = await getCategoryId()
-      
-      // Supabase에서 게시글 가져오기
-      const { data: posts, error: postsError } = await supabase
+      const { data, error } = await supabase
         .from('posts')
-        .select('*')
-        .eq('category_id', categoryId)
+        .select(`
+          *,
+          profiles:author_id (
+            full_name,
+            email
+          )
+        `)
+        .eq('category_id', await getCategoryId())
         .order('created_at', { ascending: false })
 
-      if (postsError) throw postsError
-
-      // 각 게시글에 댓글 수 추가
-      const postsWithCommentCount = await Promise.all(
-        (posts || []).map(async (post: any) => {
-          const { count: commentCount } = await supabase
-            .from('comments')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', post.id)
-          
-          return {
-            ...post,
-            comment_count: commentCount || 0,
-            author_name: post.is_anonymous ? '익명' : ((post as any).author_name || '작성자')
-          }
-        })
-      )
-      
-      setPosts(postsWithCommentCount)
+      if (error) throw error
+      setPosts(data || [])
     } catch (error) {
       console.error('Error fetching posts:', error)
     } finally {
@@ -127,37 +101,10 @@ export default function BoardPage() {
   }
 
   const handleLogout = () => {
-    // 로컬 스토리지에서 사용자 정보 제거
-    localStorage.removeItem('user')
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('user')
+    }
     router.push('/login')
-  }
-
-  const handleDeletePost = async (postId: string) => {
-    if (!confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
-      return
-    }
-
-    try {
-      // Supabase에서 관련 댓글 먼저 삭제
-      await supabase
-        .from('comments')
-        .delete()
-        .eq('post_id', postId)
-
-      // Supabase에서 게시글 삭제
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', postId)
-
-      if (error) throw error
-
-      alert('게시글이 삭제되었습니다.')
-      await fetchPosts() // 게시글 목록 새로고침
-    } catch (error: any) {
-      console.error('Error deleting post:', error)
-      alert('게시글 삭제 중 오류가 발생했습니다.')
-    }
   }
 
   const formatDate = (dateString: string) => {
@@ -226,47 +173,22 @@ export default function BoardPage() {
               posts.map((post) => (
                 <div
                   key={post.id}
-                  className="px-6 py-4 hover:bg-gray-50"
+                  className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => router.push(`/board/${slug}/post/${post.id}`)}
                 >
                   <div className="flex justify-between items-start">
-                    <div 
-                      className="flex-1 cursor-pointer"
-                      onClick={() => router.push(`/board/${slug}/post/${post.id}`)}
-                    >
+                    <div className="flex-1">
                       <h3 className="text-lg font-medium text-gray-900 mb-1">
                         {post.title}
                       </h3>
                       <div className="flex items-center text-sm text-gray-500 space-x-4">
                         <span>
-                          작성자: {(post as any).author_name}
+                          작성자: {post.is_anonymous ? '익명' : (post.profiles?.full_name || post.profiles?.email)}
                         </span>
                         <span>조회 {post.view_count}</span>
-                        <span className="flex items-center text-blue-600">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          댓글 {(post as any).comment_count || 0}
-                        </span>
                         <span>{formatDate(post.created_at)}</span>
                       </div>
                     </div>
-                    {/* 본인 게시글인 경우 수정/삭제 버튼 표시 */}
-                    {user && ((post as any).author_employee_id === user.employee_id || (post as any).author_employee_id === null) && (
-                      <div className="flex space-x-2 ml-4" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => router.push(`/board/${slug}/post/${post.id}/edit`)}
-                          className="text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          수정
-                        </button>
-                        <button
-                          onClick={() => handleDeletePost(post.id)}
-                          className="text-sm text-red-600 hover:text-red-800"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))

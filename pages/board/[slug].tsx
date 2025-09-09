@@ -41,14 +41,11 @@ export default function BoardPage() {
     }
   }, [slug])
 
-  const checkUser = () => {
-    if (typeof window !== 'undefined') {
-      const userData = sessionStorage.getItem('user')
-      if (!userData) {
-        router.push('/login')
-        return
-      }
-      const user = JSON.parse(userData)
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+    } else {
       setUser(user)
     }
   }
@@ -100,10 +97,8 @@ export default function BoardPage() {
     return data?.id || ''
   }
 
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('user')
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     router.push('/login')
   }
 
@@ -138,7 +133,7 @@ export default function BoardPage() {
             </h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-600">{user?.name} ({user?.employee_id})</span>
+            <span className="text-gray-600">{user?.email}</span>
             <button
               onClick={handleLogout}
               className="text-sm text-blue-600 hover:text-blue-800"

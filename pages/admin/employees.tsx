@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
+import { getUser, isAdmin } from '../../lib/auth'
 
 interface Employee {
   id: string
@@ -19,31 +20,29 @@ export default function EmployeeManagement() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     checkUser()
     fetchEmployees()
   }, [])
 
-  const checkUser = () => {
-    // sessionStorage에서 사용자 정보 확인
-    if (typeof window !== 'undefined') {
-      const userData = sessionStorage.getItem('user')
-      if (!userData) {
-        router.push('/login')
-        return
-      }
-      
-      const user = JSON.parse(userData)
-      setUser(user)
-      
-      // 관리자 권한 확인 (간단하게)
-      if (!user.is_admin) {
-        router.push('/')
-        return
-      }
+  const checkUser = async () => {
+    // 새로운 인증 시스템으로 사용자 정보 확인
+    const user = getUser()
+    if (!user) {
+      router.push('/login')
+      return
     }
-    setLoading(false)
+    
+    setUser(user)
+    const adminStatus = isAdmin()
+    setIsAdmin(adminStatus)
+    
+    if (!adminStatus) {
+      router.push('/')
+      return
+    }
   }
 
   const fetchEmployees = async () => {
@@ -51,20 +50,15 @@ export default function EmployeeManagement() {
       const { data, error } = await supabase
         .from('employees')
         .select('*')
-        .order('employee_id', { ascending: true })
+        .order('created_at', { ascending: false })
 
       if (error) throw error
-      setEmployees(data || [])
+      setEmployees((data as Employee[]) || [])
     } catch (error) {
       console.error('Error fetching employees:', error)
+    } finally {
+      setLoading(false)
     }
-  }
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('user')
-    }
-    router.push('/login')
   }
 
   if (loading) {
@@ -75,44 +69,36 @@ export default function EmployeeManagement() {
     )
   }
 
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">관리자 권한이 필요합니다.</div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">직원 관리</h1>
-            </div>
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user?.name} ({user?.employee_id})
-              </span>
               <button
                 onClick={() => router.push('/')}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                메인으로
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
               </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm"
-              >
-                로그아웃
-              </button>
+              <h1 className="text-2xl font-bold text-gray-900">직원 관리</h1>
             </div>
           </div>
         </div>
       </header>
 
-      {/* 메인 콘텐츠 */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">직원 목록</h2>
-          <p className="text-gray-600">총 {employees.length}명의 직원</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -127,13 +113,7 @@ export default function EmployeeManagement() {
                     부서
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    직급
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    이메일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    전화번호
+                    상태
                   </th>
                 </tr>
               </thead>
@@ -149,14 +129,14 @@ export default function EmployeeManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {employee.department}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.position || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.email || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {employee.phone || '-'}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        employee.is_active
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {employee.is_active ? '활성' : '비활성'}
+                      </span>
                     </td>
                   </tr>
                 ))}

@@ -87,13 +87,7 @@ export default function PostDetailPage() {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles:author_id (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('id', id)
         .single()
 
@@ -291,7 +285,7 @@ export default function PostDetailPage() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">{post.title}</h1>
                 <div className="flex items-center text-sm text-gray-500 space-x-4">
                   <span>
-                    작성자: {post.is_anonymous ? '익명' : (post.profiles?.full_name || post.profiles?.email)}
+                    작성자: {post.is_anonymous ? '익명' : (post.author_name || '알 수 없음')}
                   </span>
                   <span>조회 {post.view_count}</span>
                   <span>{formatDate(post.created_at)}</span>

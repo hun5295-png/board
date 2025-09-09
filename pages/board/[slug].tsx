@@ -68,22 +68,26 @@ export default function BoardPage() {
 
   const fetchPosts = async () => {
     try {
+      console.log('📡 게시글 데이터를 가져오는 중...')
+      const categoryId = await getCategoryId()
+      console.log('카테고리 ID:', categoryId)
+      
       const { data, error } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles:author_id (
-            full_name,
-            email
-          )
-        `)
-        .eq('category_id', await getCategoryId())
+        .select('*')
+        .eq('category_id', categoryId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ 게시글 조회 오류:', error)
+        throw error
+      }
+      
+      console.log('✅ 게시글 데이터 로드 성공:', data)
       setPosts(data || [])
     } catch (error) {
-      console.error('Error fetching posts:', error)
+      console.error('❌ 게시글 로드 실패:', error)
+      setPosts([])
     } finally {
       setLoading(false)
     }
@@ -179,7 +183,7 @@ export default function BoardPage() {
                       </h3>
                       <div className="flex items-center text-sm text-gray-500 space-x-4">
                         <span>
-                          작성자: {post.is_anonymous ? '익명' : (post.profiles?.full_name || post.profiles?.email)}
+                          작성자: {post.is_anonymous ? '익명' : (post.author_name || '알 수 없음')}
                         </span>
                         <span>조회 {post.view_count}</span>
                         <span>{formatDate(post.created_at)}</span>

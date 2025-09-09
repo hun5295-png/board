@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { saveUser } from '../lib/auth'
 
 export default function Login() {
   const router = useRouter()
@@ -29,8 +30,8 @@ export default function Login() {
         throw new Error('사번 또는 이름이 올바르지 않습니다.')
       }
 
-      // 로그인 성공 시 사용자 정보를 localStorage에 저장
-      localStorage.setItem('user', JSON.stringify({
+      // 로그인 성공 시 사용자 정보를 저장 (쿠키와 localStorage 모두 사용)
+      saveUser({
         id: employee.id,
         employee_id: employee.employee_id,
         name: employee.name,
@@ -39,7 +40,7 @@ export default function Login() {
         email: employee.email,
         phone: employee.phone,
         is_admin: false // 기본적으로 일반 사용자
-      }))
+      })
 
       router.push('/')
     } catch (error: any) {

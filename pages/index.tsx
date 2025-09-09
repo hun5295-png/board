@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { getUser, removeUser, isAdmin } from '../lib/auth'
 
 interface Category {
   id: string
@@ -15,7 +16,6 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([])
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -23,18 +23,15 @@ export default function Home() {
   }, [])
 
   const checkUser = async () => {
-    // 로컬 스토리지에서 사용자 정보 확인
-    if (typeof window !== 'undefined') {
-      const userData = localStorage.getItem('user')
-      if (!userData) {
-        router.push('/login')
-        return
-      }
-      
-      const user = JSON.parse(userData)
-      setUser(user)
-      setIsAdmin(user.is_admin || false)
+    // 새로운 인증 시스템으로 사용자 정보 확인
+    const user = getUser()
+    if (!user) {
+      router.push('/login')
+      return
     }
+    
+    setUser(user)
+    setIsAdmin(isAdmin())
   }
 
   const fetchCategories = async () => {
@@ -54,10 +51,7 @@ export default function Home() {
   }
 
   const handleLogout = async () => {
-    // 로컬 스토리지에서 사용자 정보 제거
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user')
-    }
+    removeUser()
     router.push('/login')
   }
 
@@ -98,19 +92,6 @@ export default function Home() {
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                 <span className="text-white/90 text-sm font-medium">{user?.name} ({user?.employee_id})</span>
               </div>
-              
-              {isAdmin && (
-                <button
-                  onClick={() => router.push('/admin/employees')}
-                  className="btn-secondary text-white border-white/30 hover:bg-white/20"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                  직원관리
-                </button>
-              )}
-              
               <button
                 onClick={handleLogout}
                 className="btn-secondary text-white border-white/30 hover:bg-white/20"

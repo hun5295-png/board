@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
+import { getUser, isAdmin } from '../../lib/auth'
 
 interface Employee {
   id: string
@@ -27,17 +28,20 @@ export default function EmployeeManagement() {
   }, [])
 
   const checkUser = async () => {
-    // 로컬 스토리지에서 사용자 정보 확인
-    if (typeof window !== 'undefined') {
-      const userData = localStorage.getItem('user')
-      if (!userData) {
-        router.push('/login')
-        return
-      }
-      
-      const user = JSON.parse(userData)
-      setUser(user)
-      setIsAdmin(user.is_admin || false)
+    // 새로운 인증 시스템으로 사용자 정보 확인
+    const user = getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    
+    setUser(user)
+    const adminStatus = isAdmin()
+    setIsAdmin(adminStatus)
+    
+    if (!adminStatus) {
+      router.push('/')
+      return
     }
   }
 

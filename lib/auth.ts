@@ -1,5 +1,3 @@
-import Cookies from 'js-cookie'
-
 export interface User {
   id: string
   employee_id: string
@@ -11,6 +9,33 @@ export interface User {
   is_admin: boolean
 }
 
+// 쿠키 헬퍼 함수들
+const setCookie = (name: string, value: string, days: number = 7) => {
+  if (typeof window === 'undefined') return
+  
+  const expires = new Date()
+  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000))
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;secure;samesite=lax`
+}
+
+const getCookie = (name: string): string | null => {
+  if (typeof window === 'undefined') return null
+  
+  const nameEQ = name + "="
+  const ca = document.cookie.split(';')
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i]
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length)
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
+  }
+  return null
+}
+
+const deleteCookie = (name: string) => {
+  if (typeof window === 'undefined') return
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
+}
+
 // 사용자 정보 저장 (쿠키와 localStorage 모두 사용)
 export const saveUser = (user: User) => {
   try {
@@ -20,11 +45,7 @@ export const saveUser = (user: User) => {
     }
     
     // 쿠키에 저장 (모바일용)
-    Cookies.set('user', JSON.stringify(user), { 
-      expires: 7, // 7일
-      secure: true, // HTTPS에서만 전송
-      sameSite: 'lax' // CSRF 보호
-    })
+    setCookie('user', JSON.stringify(user), 7)
   } catch (error) {
     console.error('사용자 정보 저장 실패:', error)
   }
@@ -42,7 +63,7 @@ export const getUser = (): User | null => {
     }
     
     // localStorage가 실패하면 쿠키에서 시도
-    const cookieUser = Cookies.get('user')
+    const cookieUser = getCookie('user')
     if (cookieUser) {
       const user = JSON.parse(cookieUser)
       // 쿠키에서 가져온 사용자 정보를 localStorage에도 저장
@@ -68,7 +89,7 @@ export const removeUser = () => {
     }
     
     // 쿠키에서 삭제
-    Cookies.remove('user')
+    deleteCookie('user')
   } catch (error) {
     console.error('사용자 정보 삭제 실패:', error)
   }

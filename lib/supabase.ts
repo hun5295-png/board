@@ -109,8 +109,26 @@ const createSimpleMockClient = () => ({
             return { data: employee, error: employee ? null : { message: 'Not found' } }
           }
           return { data: null, error: { message: 'Not found' } }
+        },
+        order: (column: string, options: any) => {
+          if (table === 'categories') {
+            return Promise.resolve({ data: mockCategories, error: null })
+          }
+          if (table === 'employees') {
+            return Promise.resolve({ data: mockEmployees, error: null })
+          }
+          return Promise.resolve({ data: [], error: null })
         }
-      })
+      }),
+      order: (column: string, options: any) => {
+        if (table === 'categories') {
+          return Promise.resolve({ data: mockCategories, error: null })
+        }
+        if (table === 'employees') {
+          return Promise.resolve({ data: mockEmployees, error: null })
+        }
+        return Promise.resolve({ data: [], error: null })
+      }
     }),
     insert: (values: any) => Promise.resolve({ data: [values], error: null }),
     update: (values: any) => ({

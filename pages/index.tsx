@@ -18,6 +18,22 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // 모바일 감지 및 Vercel 로그인창 우회
+    if (typeof window !== 'undefined') {
+      const userAgent = navigator.userAgent.toLowerCase()
+      const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
+      
+      // 모바일이고 Vercel 로그인창이 표시될 가능성이 있으면 리다이렉트
+      if (isMobile && window.location.href.includes('vercel.app')) {
+        // Vercel SSO 쿠키가 있는지 확인
+        const hasVercelSSO = document.cookie.includes('_vercel_sso_nonce')
+        if (hasVercelSSO) {
+          window.location.href = '/mobile'
+          return
+        }
+      }
+    }
+    
     checkUser()
     fetchCategories()
   }, [])

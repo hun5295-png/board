@@ -23,3 +23,8 @@ SELECT * FROM employees WHERE employee_id = '1131' AND name = '김창훈';
 
 
 
+
+
+
+
+

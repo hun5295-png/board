@@ -107,13 +107,7 @@ export default function PostDetailPage() {
     try {
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles:author_id (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('post_id', id)
         .order('created_at', { ascending: true })
 
@@ -134,12 +128,17 @@ export default function PostDetailPage() {
     setCommentLoading(true)
 
     try {
+      // 사용자 ID 생성 (사번 기반)
+      const userId = `user_${user.employee_id}_${Date.now()}`
+      
       const { error } = await supabase
         .from('comments')
         .insert({
           content: newComment.trim(),
           post_id: id,
-          author_id: user?.id,
+          author_id: userId,
+          author_name: isAnonymousComment ? '익명' : user.name,
+          author_employee_id: isAnonymousComment ? null : user.employee_id,
           is_anonymous: isAnonymousComment
         })
 
@@ -172,7 +171,7 @@ export default function PostDetailPage() {
   }
 
   const canEdit = () => {
-    return user && post && (user.id === post.author_id)
+    return user && post && (user.employee_id === post.author_employee_id)
   }
 
   const handleEditPost = () => {
@@ -374,12 +373,12 @@ export default function PostDetailPage() {
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center text-sm text-gray-500 space-x-2">
                       <span className="font-medium">
-                        {comment.is_anonymous ? '익명' : (comment.profiles?.full_name || comment.profiles?.email)}
+                        {comment.is_anonymous ? '익명' : (comment.author_name || '알 수 없음')}
                       </span>
                       <span>•</span>
                       <span>{formatDate(comment.created_at)}</span>
                     </div>
-                    {user && user.id === comment.author_id && (
+                    {user && user.employee_id === comment.author_employee_id && (
                       <div className="flex space-x-2">
                         <button 
                           onClick={() => {

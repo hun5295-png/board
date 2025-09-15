@@ -79,31 +79,25 @@ export default function WritePage() {
     setLoading(true)
 
     try {
-      // UUID 생성 (더 정확한 방법)
-      const generateUUID = () => {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0
-          const v = c === 'x' ? r : (r & 0x3 | 0x8)
-          return v.toString(16)
-        })
-      }
-
       console.log('게시글 작성 시도:', {
         title: title.trim(),
         content: content.trim(),
         category_id: category?.id,
-        author_id: generateUUID(),
+        author_id: user.id,
         is_anonymous: isAnonymous
       })
 
-      // Supabase에 게시글 저장 (외래키 제약 조건 제거됨)
+      // 사용자 ID 생성 (사번 기반)
+      const userId = `user_${user.employee_id}_${Date.now()}`
+      
+      // Supabase에 게시글 저장
       const { data, error } = await supabase
         .from('posts')
         .insert({
           title: title.trim(),
           content: content.trim(),
           category_id: category?.id,
-          author_id: generateUUID(), // UUID 생성 (외래키 제약 조건 제거됨)
+          author_id: userId, // 생성된 사용자 ID 사용
           author_name: isAnonymous ? '익명' : user.name,
           author_employee_id: isAnonymous ? null : user.employee_id,
           is_anonymous: isAnonymous

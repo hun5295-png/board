@@ -9,8 +9,11 @@ interface Post {
   title: string
   content: string
   author_id: string
+  author_name?: string
+  author_employee_id?: string
   is_anonymous: boolean
   view_count: number
+  comment_count?: number
   created_at: string
   profiles?: {
     full_name: string
@@ -74,7 +77,10 @@ export default function BoardPage() {
       
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          comments:comments(count)
+        `)
         .eq('category_id', categoryId)
         .order('created_at', { ascending: false })
 
@@ -83,8 +89,14 @@ export default function BoardPage() {
         throw error
       }
       
-      console.log('✅ 게시글 데이터 로드 성공:', data)
-      setPosts(data || [])
+      // 댓글 수 추가
+      const postsWithCommentCount = data?.map(post => ({
+        ...post,
+        comment_count: post.comments?.[0]?.count || 0
+      })) || []
+      
+      console.log('✅ 게시글 데이터 로드 성공:', postsWithCommentCount)
+      setPosts(postsWithCommentCount)
     } catch (error) {
       console.error('❌ 게시글 로드 실패:', error)
       setPosts([])
@@ -186,6 +198,7 @@ export default function BoardPage() {
                           작성자: {post.is_anonymous ? '익명' : (post.author_name || '알 수 없음')}
                         </span>
                         <span>조회 {post.view_count}</span>
+                        <span>댓글 {post.comment_count || 0}</span>
                         <span>{formatDate(post.created_at)}</span>
                       </div>
                     </div>

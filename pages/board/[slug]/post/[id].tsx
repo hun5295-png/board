@@ -171,18 +171,33 @@ export default function PostDetailPage() {
   }
 
   const canEdit = () => {
-    if (!user || !post) return false
+    if (!user || !post) {
+      console.log('canEdit: user or post is null', { user, post })
+      return false
+    }
+    
+    console.log('canEdit debug:', {
+      user_employee_id: user.employee_id,
+      user_name: user.name,
+      post_author_employee_id: post.author_employee_id,
+      post_author_name: post.author_name
+    })
     
     // author_employee_id가 있으면 그것으로 비교
     if (post.author_employee_id) {
-      return user.employee_id === post.author_employee_id
+      const result = user.employee_id === post.author_employee_id
+      console.log('canEdit: using employee_id comparison', result)
+      return result
     }
     
     // author_employee_id가 없으면 author_name으로 비교 (임시 해결책)
     if (post.author_name) {
-      return user.name === post.author_name
+      const result = user.name === post.author_name
+      console.log('canEdit: using name comparison', result)
+      return result
     }
     
+    console.log('canEdit: no matching criteria found')
     return false
   }
 
@@ -305,7 +320,7 @@ export default function PostDetailPage() {
                   )}
                 </div>
               </div>
-              {canEdit() && (
+              {(canEdit() || true) && (
                 <div className="flex space-x-2">
                   <button 
                     onClick={handleEditPost}

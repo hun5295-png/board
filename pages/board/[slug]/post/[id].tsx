@@ -9,26 +9,22 @@ interface Post {
   title: string
   content: string
   author_id: string
+  author_name?: string
+  author_employee_id?: string
   is_anonymous: boolean
   view_count: number
   created_at: string
   updated_at: string
-  profiles?: {
-    full_name: string
-    email: string
-  }
 }
 
 interface Comment {
   id: string
   content: string
   author_id: string
+  author_name?: string
+  author_employee_id?: string
   is_anonymous: boolean
   created_at: string
-  profiles?: {
-    full_name: string
-    email: string
-  }
 }
 
 interface Category {
@@ -128,15 +124,12 @@ export default function PostDetailPage() {
     setCommentLoading(true)
 
     try {
-      // 사용자 ID 생성 (사번 기반)
-      const userId = `user_${user.employee_id}_${Date.now()}`
-      
       const { error } = await supabase
         .from('comments')
         .insert({
           content: newComment.trim(),
           post_id: id,
-          author_id: userId,
+          author_id: user.id,
           author_name: isAnonymousComment ? '익명' : user.name,
           author_employee_id: isAnonymousComment ? null : user.employee_id,
           is_anonymous: isAnonymousComment

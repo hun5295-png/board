@@ -85,7 +85,13 @@ export default function EditPostPage() {
       }
 
       const currentUser = JSON.parse(userData)
-      if (data.author_employee_id !== currentUser.employee_id) {
+      
+      // 권한 확인 로직
+      const hasPermission = data.author_employee_id ? 
+        data.author_employee_id === currentUser.employee_id :
+        data.author_name === currentUser.name
+      
+      if (!hasPermission) {
         alert('수정 권한이 없습니다.')
         router.push(`/board/${slug}/post/${id}`)
         return

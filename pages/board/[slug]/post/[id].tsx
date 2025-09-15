@@ -171,7 +171,19 @@ export default function PostDetailPage() {
   }
 
   const canEdit = () => {
-    return user && post && (user.employee_id === post.author_employee_id)
+    if (!user || !post) return false
+    
+    // author_employee_id가 있으면 그것으로 비교
+    if (post.author_employee_id) {
+      return user.employee_id === post.author_employee_id
+    }
+    
+    // author_employee_id가 없으면 author_name으로 비교 (임시 해결책)
+    if (post.author_name) {
+      return user.name === post.author_name
+    }
+    
+    return false
   }
 
   const handleEditPost = () => {
@@ -378,7 +390,11 @@ export default function PostDetailPage() {
                       <span>•</span>
                       <span>{formatDate(comment.created_at)}</span>
                     </div>
-                    {user && user.employee_id === comment.author_employee_id && (
+                    {user && (
+                      comment.author_employee_id ? 
+                        user.employee_id === comment.author_employee_id : 
+                        user.name === comment.author_name
+                    ) && (
                       <div className="flex space-x-2">
                         <button 
                           onClick={() => {

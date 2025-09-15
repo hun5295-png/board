@@ -87,8 +87,14 @@ export default function WritePage() {
         is_anonymous: isAnonymous
       })
 
-      // 사용자 ID 생성 (사번 기반)
-      const userId = `user_${user.employee_id}_${Date.now()}`
+      // UUID 생성 함수
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0
+          const v = c === 'x' ? r : (r & 0x3 | 0x8)
+          return v.toString(16)
+        })
+      }
       
       // Supabase에 게시글 저장
       const { data, error } = await supabase
@@ -97,7 +103,7 @@ export default function WritePage() {
           title: title.trim(),
           content: content.trim(),
           category_id: category?.id,
-          author_id: userId, // 생성된 사용자 ID 사용
+          author_id: generateUUID(), // UUID 생성
           author_name: isAnonymous ? '익명' : user.name,
           author_employee_id: isAnonymous ? null : user.employee_id,
           is_anonymous: isAnonymous

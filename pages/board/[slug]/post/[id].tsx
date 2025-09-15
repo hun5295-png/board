@@ -124,12 +124,21 @@ export default function PostDetailPage() {
     setCommentLoading(true)
 
     try {
+      // UUID 생성 함수
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0
+          const v = c === 'x' ? r : (r & 0x3 | 0x8)
+          return v.toString(16)
+        })
+      }
+      
       const { error } = await supabase
         .from('comments')
         .insert({
           content: newComment.trim(),
           post_id: id,
-          author_id: user.id,
+          author_id: generateUUID(), // UUID 생성
           author_name: isAnonymousComment ? '익명' : user.name,
           author_employee_id: isAnonymousComment ? null : user.employee_id,
           is_anonymous: isAnonymousComment
